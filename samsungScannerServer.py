@@ -24,6 +24,7 @@ import atexit
 import datetime
 import errno  # t-k: needed for error handling in TCP proxy
 import io
+import json
 import logging
 import logging.handlers
 import multiprocessing  # t-k: need subprocesses for TCP and UDP proxy
@@ -674,23 +675,136 @@ parser.add_option_group(group)
 if len(args) != 0:
     parser.error("incorrect number of arguments")
 
-# Read configuration
-HOME_DIR=os.getenv("HOME", os.path.expanduser("~"))
-XDG_CONFIG_HOME=os.getenv("XDG_CONFIG_HOME", os.path.join(HOME_DIR, ".config"))
-PATHS = ['.', XDG_CONFIG_HOME, '/etc']
-CONFIG_FILENAME = 'samsungScannerServer.conf'
-CONFIG_FILE = None
-for path in PATHS:
+# ---------------------------------------------------------------------------
+# Configuration — read entirely from environment variables.
+# An optional Python file (OPTIONS_FILE) may be mounted for advanced scan
+# option definitions that include filter functions.
+# ---------------------------------------------------------------------------
+HOME_DIR = os.getenv("HOME", os.path.expanduser("~"))
+
+
+def _env_bool(name, default=False):
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    return val.strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _env_int(name, default):
+    val = os.environ.get(name)
+    if val is None:
+        return default
     try:
-        filePath = path + '/' + CONFIG_FILENAME
-        exec(compile(open(filePath).read(), filePath, 'exec'))
-        CONFIG_FILE = filePath
-        break
-    except IOError:
-        ""
-if not CONFIG_FILE:
-    print("Could not find config file (" + CONFIG_FILENAME + ") in " + str(PATHS), file=sys.stderr)
-    sys.exit(1)
+        return int(val)
+    except ValueError:
+        print(
+            "Warning: invalid integer for %s='%s', using default %d" % (name, val, default),
+            file=sys.stderr,
+        )
+        return default
+
+
+# Core feature flags
+ENABLED_SERVER = _env_bool('ENABLED_SERVER', True)
+MODIFIED_SANE = _env_bool('MODIFIED_SANE', False)
+PROXY_DEBUGLEVEL = _env_int('PROXY_DEBUGLEVEL', 1)
+SCANNER_CACHING = _env_bool('SCANNER_CACHING', True)
+
+# Scanner / server identity (both optional — auto-detected when absent)
+if 'SCANNER_SANE_NAME' in os.environ:
+    SCANNER_SANE_NAME = os.environ['SCANNER_SANE_NAME']
+
+if 'SERVER_NAME' in os.environ:
+    SERVER_NAME = os.environ['SERVER_NAME']
+
+# Owner of produced scan files
+if 'OWNER_UID' in os.environ:
+    OWNER_UID = _env_int('OWNER_UID', 1000)
+if 'OWNER' in os.environ:
+    OWNER = os.environ['OWNER']
+
+# Output path: directory + filename template are joined to form OUTPUT_PREFIX
+_scan_output_dir = os.environ.get('SCAN_OUTPUT_DIR', '/scans')
+_scan_filename_template = os.environ.get('SCAN_FILENAME_TEMPLATE', 'SCAN_${date}__${uid}')
+OUTPUT_PREFIX = os.path.join(_scan_output_dir, _scan_filename_template)
+
+# Logging
+LOG_NAME = os.environ.get('LOG_NAME', '/var/log/samsungScannerServer.log')
+if LOG_NAME == '':
+    LOG_NAME = None
+LOG_MAXBYTES = _env_int('LOG_MAXBYTES', 100000)
+LOG_BACKUPCOUNT = _env_int('LOG_BACKUPCOUNT', 1)
+
+# Colour-mode → SANE mode translation table
+MODES2SANE = {
+    'COLOR_MONO': 'Black and White - Line Art',
+    'COLOR_GRAY': 'Grayscale - 256 Levels',
+    'COLOR_TRUE': 'Color - 16 Million Colors',
+}
+_modes2sane_env = os.environ.get('MODES2SANE')
+if _modes2sane_env:
+    try:
+        MODES2SANE = json.loads(_modes2sane_env)
+    except json.JSONDecodeError as e:
+        print("Warning: could not parse MODES2SANE JSON: %s" % e, file=sys.stderr)
+
+# File-format → extension translation table
+EXTENSIONS = {
+    'FORMAT_S_PDF': 'pdf',
+    'FORMAT_M_PDF': 'pdf',
+    'FORMAT_PDF': 'pdf',
+    'FORMAT_JPEG': 'jpg',
+    'FORMAT_S_TIFF': 'tiff',
+    'FORMAT_M_TIFF': 'tiff',
+}
+
+# SIZE2SANE: auto-configured from the device later when not provided here
+_size2sane_env = os.environ.get('SIZE2SANE')
+if _size2sane_env:
+    try:
+        SIZE2SANE = json.loads(_size2sane_env)
+    except json.JSONDecodeError as e:
+        print("Warning: could not parse SIZE2SANE JSON: %s" % e, file=sys.stderr)
+
+# OPTIONS: loaded from a mounted Python file, a JSON env var, or built-in defaults.
+# The Python file may define filter functions; the JSON path cannot.
+_OPTIONS_FILE = os.environ.get('OPTIONS_FILE', '/etc/samsungScannerServer.options.py')
+if os.path.exists(_OPTIONS_FILE):
+    try:
+        exec(compile(open(_OPTIONS_FILE).read(), _OPTIONS_FILE, 'exec'))
+        print("Loaded OPTIONS from file: %s" % _OPTIONS_FILE)
+    except Exception as e:
+        print("Error loading OPTIONS file '%s': %s" % (_OPTIONS_FILE, e), file=sys.stderr)
+        sys.exit(1)
+else:
+    _options_env = os.environ.get('SCAN_OPTIONS')
+    if _options_env:
+        try:
+            _options_raw = json.loads(_options_env)
+            OPTIONS = []
+            for _opt in _options_raw:
+                OPTIONS.append({
+                    'name': _opt.get('name', 'Unnamed'),
+                    'color': _opt.get('color', 'COLOR_GRAY'),
+                    'resolution': _opt.get('resolution', 'DPI_300'),
+                    'format': _opt.get('format', 'FORMAT_M_PDF'),
+                    'size': _opt.get('size', 'SIZE_A4'),
+                    'output': _opt.get('output', OUTPUT_PREFIX),
+                    'filters': [],
+                })
+        except json.JSONDecodeError as e:
+            print("Error parsing SCAN_OPTIONS JSON: %s" % e, file=sys.stderr)
+            sys.exit(1)
+    else:
+        # Built-in defaults — covers the most common use-cases out of the box
+        OPTIONS = [
+            {'name': 'Gray-M_PDF-300',  'color': 'COLOR_GRAY', 'resolution': 'DPI_300', 'format': 'FORMAT_M_PDF', 'size': 'SIZE_A4', 'output': OUTPUT_PREFIX, 'filters': []},
+            {'name': 'Color-M_PDF-300', 'color': 'COLOR_TRUE', 'resolution': 'DPI_300', 'format': 'FORMAT_M_PDF', 'size': 'SIZE_A4', 'output': OUTPUT_PREFIX, 'filters': []},
+            {'name': 'Gray-JPEG-300',   'color': 'COLOR_GRAY', 'resolution': 'DPI_300', 'format': 'FORMAT_JPEG',  'size': 'SIZE_A4', 'output': OUTPUT_PREFIX, 'filters': []},
+            {'name': 'Color-JPEG-300',  'color': 'COLOR_TRUE', 'resolution': 'DPI_300', 'format': 'FORMAT_JPEG',  'size': 'SIZE_A4', 'output': OUTPUT_PREFIX, 'filters': []},
+            {'name': 'Gray-M_PDF-75',   'color': 'COLOR_GRAY', 'resolution': 'DPI_75',  'format': 'FORMAT_M_PDF', 'size': 'SIZE_A4', 'output': OUTPUT_PREFIX, 'filters': []},
+            {'name': 'Gray-S_PDF-75',   'color': 'COLOR_GRAY', 'resolution': 'DPI_75',  'format': 'FORMAT_S_PDF', 'size': 'SIZE_A4', 'output': OUTPUT_PREFIX, 'filters': []},
+        ]
 
 
 # ############################## LOGGING ################################
@@ -866,7 +980,7 @@ if __name__ == '__main__':
         logQ.put_nowait(None)
 
 
-    # Print version
+    # Print version and active configuration
     print("###########################")
     print("# Initiating version " + __version__)
     print("###########################")
@@ -874,23 +988,21 @@ if __name__ == '__main__':
     print('At program termination joining log listener process with:\n' + ' ' * 4 +
           str(atexit.register(exit_listener)))
 
-    # Logging configuration file
-    print("Used '%s' as configuration file." % CONFIG_FILE)
-    print('Below is what was configured with it.')
-    f = open(CONFIG_FILE)
-    for line in f:
-        # t-k: do not print empty lines to logfile
-        if line.strip() == '':
-            continue
-        # t-k: do not print lines that are commented out to logfile
-        noindentLine = line.lstrip()
-        if noindentLine[0] == '#':
-            continue
-        # t-k: remove remaining comments from line
-        if '#' in line:
-            line = line.split('#')[0] + '\n'
-        sys.stdout.write("CONFIG: " + line)
-    f.close()
+    # Log active configuration
+    print("Configuration loaded from environment variables:")
+    _env_config_vars = [
+        'ENABLED_SERVER',
+        'SCANNER_SANE_NAME', 'SERVER_NAME',
+        'OWNER_UID', 'OWNER',
+        'SCAN_OUTPUT_DIR', 'SCAN_FILENAME_TEMPLATE',
+        'MODIFIED_SANE', 'PROXY_DEBUGLEVEL', 'SCANNER_CACHING',
+        'LOG_NAME', 'LOG_MAXBYTES', 'LOG_BACKUPCOUNT',
+        'OPTIONS_FILE', 'SCAN_OPTIONS',
+        'SIZE2SANE', 'MODES2SANE',
+    ]
+    for _var in _env_config_vars:
+        _val = os.environ.get(_var, '(not set — using default)')
+        print("CONFIG: %s=%s" % (_var, _val))
 
     # Debug mode
     if options.imageFiles:

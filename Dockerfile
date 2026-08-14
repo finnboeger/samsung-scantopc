@@ -48,14 +48,8 @@ RUN curl -fsSL \
 # Output directory for scanned files
 RUN mkdir -p /scans
 
-# Create a non-root user matching the default OWNER_UID
-RUN useradd -u 1000 -m -s /bin/bash -g scanner scanuser \
-    && mkdir -p /scans \
-    && chown scanuser:scanner /scans
-
 # Copy configuration files
 COPY etc/avahi-daemon.conf /etc/avahi/avahi-daemon.conf
-COPY etc/samsungScannerServer.conf /etc/samsungScannerServer.conf
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
