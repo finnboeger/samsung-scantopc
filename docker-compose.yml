@@ -1,0 +1,13 @@
+# base, used for production Linux
+services:
+  samsung-scantopc:
+    build: .
+    platform: linux/amd64
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+      - NET_RAW
+    volumes:
+      - ./scans:/scans
+    restart: unless-stopped
