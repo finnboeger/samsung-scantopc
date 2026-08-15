@@ -1,22 +1,44 @@
+import asyncio
+
+from pysnmp.hlapi.v3arch import (
+    CommunityData,
+    ContextData,
+    ObjectIdentity,
+    ObjectType,
+    SnmpEngine,
+    UdpTransportTarget,
+    get_cmd,
+)
+
 from .config import Config
 
 
-def query_snmp_variable(ip, oid):
-    from pysnmp.entity.rfc3413.oneliner import cmdgen
-
-    error_indication, error_status, _error_index, var_binds = cmdgen.CommandGenerator().getCmd(
-        cmdgen.CommunityData('my-agent', 'public', 0),
-        cmdgen.UdpTransportTarget((ip, 161)),
-        oid)
-
-    return_value = None
+async def _async_query_snmp(ip: str, oid_str: str):
+    snmp_engine = SnmpEngine()
+    transport = await UdpTransportTarget.create((ip, 161), timeout=2.0, retries=1)
+    
+    iterator = get_cmd(
+        snmp_engine,
+        CommunityData("public", mpModel=0),
+        transport,
+        ContextData(),
+        ObjectType(ObjectIdentity(oid_str)),
+    )
+    
+    error_indication, error_status, _error_index, var_binds = await iterator
+    snmp_engine.close_dispatcher()
+    
     if error_indication:
-        raise NameError(f'Error indication in SNMP query: {error_indication}')  # t-k: %s to avoid TypeError
+        raise NameError(f"Error indication in SNMP query: {error_indication}")
     elif error_status:
-        raise NameError(f'Error status in SNMP query: {error_status}')  # t-k: %s to avoid TypeError
-    else:
-        return_value = var_binds
-    return return_value
+        raise NameError(f"Error status in SNMP query: {error_status}")
+        
+    return var_binds
+
+def query_snmp_variable(ip, oid):
+    if isinstance(oid, (tuple, list)):
+        oid = ".".join(str(x) for x in oid)
+    return asyncio.run(_async_query_snmp(ip, str(oid)))
 
 
 def query_printer_scan_status(instance_id):
