@@ -9,6 +9,7 @@ import sys
 import time
 from optparse import OptionGroup, OptionParser, Values
 from string import Template
+from typing import Any, Callable, TypedDict
 
 import sane
 
@@ -67,6 +68,19 @@ group.add_option("--optionsIndex", type="int", dest="optionsIndex", default=0,
 parser.add_option_group(group)
 
 
+ScanFilter = Callable[..., Any]
+
+
+class ScanOption(TypedDict):
+    name: str
+    color: str
+    resolution: str
+    format: str
+    size: str
+    output: str
+    filters: list[ScanFilter]
+
+
 class Config:
     """Singleton class to manage configuration settings."""
 
@@ -83,7 +97,7 @@ class Config:
 
     MODES2SANE: dict[str, str]
     SIZE2SANE: dict[str, str]
-    OPTIONS: list[dict[str, str | list]]
+    OPTIONS: list[ScanOption]
     CLI_OPTIONS: Values
     
 
@@ -180,12 +194,28 @@ class Config:
         _OPTIONS_FILE = os.environ.get('OPTIONS_FILE', '/etc/samsungScannerServer.options.py')
         if os.path.exists(_OPTIONS_FILE):
             try:
+                # Isolated namespace to capture definitions from the external file
+                local_namespace: dict[str, Any] = {}
                 with open(_OPTIONS_FILE) as f:
-                    # TODO: ensure this data is loaded properly and its output is stored correctly in self.OPTIONS
-                    exec(compile(f.read(), _OPTIONS_FILE, 'exec'))
+                    exec(
+                        compile(f.read(), _OPTIONS_FILE, "exec"),
+                        {},
+                        local_namespace,
+                    )
+
+                if "OPTIONS" not in local_namespace:
+                    raise KeyError(
+                        f"'{_OPTIONS_FILE}' does not define an 'OPTIONS' variable."
+                    )
+
+                self.OPTIONS = local_namespace["OPTIONS"]
                 print("Loaded OPTIONS from file: %s" % _OPTIONS_FILE)
             except Exception as e:
-                print("Error loading OPTIONS file '%s': %s" % (_OPTIONS_FILE, e), file=sys.stderr)
+                print(
+                    "Error loading OPTIONS file '%s': %s"
+                    % (_OPTIONS_FILE, e),
+                    file=sys.stderr,
+                )
                 sys.exit(1)
         else:
             _options_env = os.environ.get('SCAN_OPTIONS')
