@@ -162,21 +162,53 @@ def push_server_options():
 
 def query_user_options() -> ScanOption:
     config = Config()
-    result = post_multipart(config.SCANNER_IP, '/IDS/UserSelect.xml', [], [(1, "scantopc", "")]) or \
-        fail("No options selected by user", RuntimeError)
+
     # {'name':'Gray-S_PDF-75','color':'GRAY','resolution':'75','format':'S_PDF','size','a4'}
     # result='<?xml version="1.0" encoding="UTF-8"?><root><S2PC_Select><AppIndex Value="1"/>
     #   <Resolution Value="DPI_300"/><Color Value="COLOR_GRAY"/><FileFormat Value="FORMAT_M_PDF"/>
     #   <ScanSize Value="SIZE_A4"/></S2PC_Select></root>'
     # print result
-    root = ET.fromstring(result).find('S2PC_Select') or fail("S2PC_Select does not exist", RuntimeError)
-    index = (root.find('AppIndex') or fail("AppIndex does not exist", RuntimeError)).attrib["Value"]
+    
+    raw_result = post_multipart(
+        config.SCANNER_IP, "/IDS/UserSelect.xml", [], [(1, "scantopc", "")]
+    )
+    if not raw_result:
+        raise RuntimeError("No options selected by user (empty response)")
 
-    user_options = config.OPTIONS[int(index) - 1]  # t-k: added '-1'
-    user_options['color'] = (root.find('Color')  or fail("Color does not exist", RuntimeError)).attrib["Value"]
-    user_options['resolution'] = (root.find('Resolution')  or fail("Resolution does not exist", RuntimeError)).attrib["Value"]
-    user_options['format'] = (root.find('FileFormat') or fail("FileFormat does not exist", RuntimeError)).attrib["Value"]
-    user_options['size'] = (root.find('ScanSize') or fail("ScanSize does not exist", RuntimeError)).attrib["Value"]
+    # Decode if bytes
+    result_str = (
+        raw_result.decode("utf-8")
+        if isinstance(raw_result, bytes)
+        else raw_result
+    )
+
+    xml_root = ET.fromstring(result_str)
+    s2pc_select = xml_root.find("S2PC_Select")
+    if s2pc_select is None:
+        raise RuntimeError(f"S2PC_Select tag not found in scanner response: {result_str}")
+
+    def get_val(tag_name: str, default: str | None = None) -> str:
+        elem = s2pc_select.find(tag_name)
+        if elem is not None and "Value" in elem.attrib:
+            return elem.attrib["Value"]
+        elif elem is not None and "value" in elem.attrib:
+            return elem.attrib["value"]
+        elif default is not None:
+            return default
+        raise RuntimeError(f"Tag or Value attribute for '{tag_name}' not found in XML: {result_str}")
+
+    index_str = get_val("AppIndex")
+    index = int(index_str) - 1
+
+    # Copy template option from config
+    user_options = config.OPTIONS[index].copy()
+
+    # Override with options returned by scanner if present
+    user_options["color"] = get_val("Color", user_options.get("color"))
+    user_options["resolution"] = get_val(
+        "Resolution", user_options.get("resolution")
+    )
+    user_options["format"] = get_val("FileFormat", user_options.get("format"))
+    user_options["size"] = get_val("ScanSize", user_options.get("size"))
 
     return user_options
-
