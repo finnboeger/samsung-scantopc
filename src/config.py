@@ -7,9 +7,10 @@ import re
 import socket
 import sys
 import time
+from collections.abc import Callable
 from optparse import OptionGroup, OptionParser, Values
 from string import Template
-from typing import Any, Callable, TypedDict
+from typing import Any, TypedDict
 
 import sane
 
@@ -31,7 +32,7 @@ def _env_int(name, default):
         return int(val)
     except ValueError:
         print(
-            "Warning: invalid integer for %s='%s', using default %d" % (name, val, default),
+            f"Warning: invalid integer for {name}='{val}', using default {default}",
             file=sys.stderr,
         )
         return default
@@ -146,7 +147,7 @@ class Config:
                 tmpinsert = ' SAMSUNG'
             else:
                 tmpinsert = ''
-            sys.stderr.write('No%s Scanner found. Trying again in 30s.\n' % tmpinsert)
+            sys.stderr.write(f'No{tmpinsert} Scanner found. Trying again in 30s.\n')
             time.sleep(30)
 
         self.SCANNER_SANE_NAME = scanner_sane_name
@@ -175,7 +176,7 @@ class Config:
             try:
                 self.MODES2SANE = json.loads(modes2sane_env)
             except json.JSONDecodeError as e:
-                print("Warning: could not parse MODES2SANE JSON: %s" % e, file=sys.stderr)
+                print(f"Warning: could not parse MODES2SANE JSON: {e}", file=sys.stderr)
 
 
     def update_size2sane(self) -> None:
@@ -209,11 +210,10 @@ class Config:
                     )
 
                 self.OPTIONS = local_namespace["OPTIONS"]
-                print("Loaded OPTIONS from file: %s" % _OPTIONS_FILE)
+                print(f"Loaded OPTIONS from file: {_OPTIONS_FILE}")
             except Exception as e:
                 print(
-                    "Error loading OPTIONS file '%s': %s"
-                    % (_OPTIONS_FILE, e),
+                    f"Error loading OPTIONS file '{_OPTIONS_FILE}': {e}",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -234,7 +234,7 @@ class Config:
                             'filters': [],
                         })
                 except json.JSONDecodeError as e:
-                    print("Error parsing SCAN_OPTIONS JSON: %s" % e, file=sys.stderr)
+                    print(f"Error parsing SCAN_OPTIONS JSON: {e}", file=sys.stderr)
                     sys.exit(1)
             else:
                 # Built-in defaults — covers the most common use-cases out of the box
@@ -253,7 +253,7 @@ class Config:
         try:
             self.SCANNER_IP = extractIPs(self.SCANNER_SANE_NAME)[0]
         except IndexError:  # regex failed?
-            print("Couldn't recognize IPv4 of scanner '%s'." % self.SCANNER_SANE_NAME, file=sys.stderr)
+            print(f"Couldn't recognize IPv4 of scanner '{self.SCANNER_SANE_NAME}'.", file=sys.stderr)
             sys.exit(1)
         print_autoconfig(self.SCANNER_IP, 'SCANNER_IP')
         self.REAL_SCANNER_IP = self.SCANNER_IP  # t-k: preserve IP if changed by MODIFIED_SANE method
@@ -268,7 +268,7 @@ class Config:
         while True:
             try:
                 sock.connect((self.SCANNER_IP, 80))
-            except socket.error as e:
+            except OSError as e:
                 if e.errno == errno.EALREADY:  # operation already in progress
                     time.sleep(1)
                     continue
@@ -276,7 +276,7 @@ class Config:
                     sock.close()
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(2.0)
-                sys.stderr.write('Problem contacting Scanner over network: %s, retrying in 10s ...\n' % e)
+                sys.stderr.write(f'Problem contacting Scanner over network: {e}, retrying in 10s ...\n')
                 time.sleep(10)
             else:
                 break
@@ -299,15 +299,14 @@ class Config:
             if os.path.lexists(dirToMake):
                 if not os.path.isdir(dirToMake):
                     raise OSError('Invalid OUTPUT_PREFIX given in configuration file.\n' +
-                                ' ' * 9 + 'The path specified exists, but is not a directory!\n' +
-                                ' ' * 9 + "You should either change OUTPUT_PREFIX or check '%s' and move or rename it."
-                                % dirToMake)
+                                f"{' ' * 9}The path specified exists, but is not a directory!\n" +
+                                f"{' ' * 9}You should either change OUTPUT_PREFIX or check '{dirToMake}' and move or rename it.")
             else:
                 os.mkdir(dirToMake)
                 uid = int(self.OWNER_UID)
                 gid = pwd.getpwuid(uid).pw_gid
                 os.chown(dirToMake, uid, gid)
-                print("Created the directory '%s'." % dirToMake)
+                print(f"Created the directory '{dirToMake}'.")
 
 
     def update(self) -> None:
@@ -370,7 +369,7 @@ def print_autoconfig(variable, variable_name, no_quotes=False):
         quote = ""
     else:
         quote = "'"
-    print("AUTOCONFIG: %(variable_name)s = %(quote)s%(variable)s%(quote)s" % locals())
+    print(f"AUTOCONFIG: {variable_name} = {quote}{variable}{quote}")
 
 
 # t-k: function to extract valid IPv4s

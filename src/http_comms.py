@@ -30,7 +30,7 @@ def post_multipart(host, selector, fields, files, exact_response=True):
         else:
             return None
     except Exception as e:
-        raise Exception('Problem contacting Scanner over network: %s' % e)
+        raise Exception(f'Problem contacting Scanner over network: {e}')
 
 
 def encode_multipart_formdata(fields, files):
@@ -80,17 +80,18 @@ def server_register(printing=True):
         raise NameError("Error registering server: " + result)
     else:
         if printing:
-            print("Newly registered server '%(config.SERVER_NAME)s' with UniqueID '%(state.server_uid)s' has got" % globals())
-            print("    InstanceID '" + m.group(1) + "'.")  # t-k: better readability and understanding
+            print(f"Newly registered server '{config.SERVER_NAME}' with UniqueID '{state.server_uid}' has got")
+            print(f"    InstanceID '{m.group(1)}'.")  # t-k: better readability and understanding
         return int(m.group(1))
 
 
 # t-k: restructered function to be real refresh
 def server_refresh():
+    config = Config()
     old_instance_id = state.server_instance_id
     state.server_instance_id = server_register(printing=False)
     if state.server_instance_id != old_instance_id:
-        print("Refreshed server '%(config.SERVER_NAME)s' with UniqueID '%(state.server_uid)s' has got" % globals())
+        print(f"Refreshed server '{config.SERVER_NAME}' with UniqueID '{state.server_uid}' has got")
         print("    new InstanceID '" + str(state.server_instance_id) + "'.")
     return state.server_instance_id
 
@@ -113,7 +114,7 @@ def server_unregister():
     if not m:
         raise NameError("Error unregistering server: " + result)
     else:
-        print("Unregistered server '%(config.SERVER_NAME)s' with UniqueID '%(state.server_uid)s'." % globals())
+        print(f"Unregistered server '{config.SERVER_NAME}' with UniqueID '{state.server_uid}'.")
 
 
 def push_server_options():

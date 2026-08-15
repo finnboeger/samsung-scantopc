@@ -4,7 +4,7 @@ import logging.handlers
 from .config import Config
 
 
-class LogFile(object):
+class LogFile:
     def __init__(self, name=None):
         self.logger = logging.getLogger(name)
         self.buffer = ""
@@ -98,7 +98,7 @@ class QueueHandler(logging.Handler):
             self.enqueue(self.prepare(record))
         except (KeyboardInterrupt, SystemExit):
             raise
-        except:
+        except:  # noqa: E722
             self.handleError(record)
 
 
@@ -133,7 +133,7 @@ def listener_process(queue, configurer):
         except (KeyboardInterrupt, SystemExit):
             # raise
             pass  # handled by signal and atexit
-        except:
+        except:  # noqa: E722
             import sys
             import traceback
             print('Whoops! Problem:', file=sys.stderr)

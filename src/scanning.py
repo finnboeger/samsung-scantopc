@@ -28,7 +28,7 @@ def autoconfig_dic(dic_name, xml_key, preferred):
     if dic_name not in globals():
         try:
             # t-k: get available options from XML file that may be received by server
-            capxmlfile = request.urlopen('http://%s/IDS/CAP.XML' % config.REAL_SCANNER_IP)
+            capxmlfile = request.urlopen(f'http://{config.REAL_SCANNER_IP}/IDS/CAP.XML')
             capxmldata = capxmlfile.read()
             capxmlfile.close()
             xmlroot = ET.fromstring(capxmldata)
@@ -41,7 +41,6 @@ def autoconfig_dic(dic_name, xml_key, preferred):
             dic = {}
             for sizeID in sizes:
                 size_lst = sizeID.split('_')[1:]  # t-k: may be > 1 part, e.g. ['B5', 'JIS']
-                candidates = []
                 for saneSize in sane_sizes:
                     flag = True
                     for sizeElm in size_lst:
@@ -51,13 +50,13 @@ def autoconfig_dic(dic_name, xml_key, preferred):
                     if flag and (sizeID not in dic or preferred in saneSize.lower()):
                         dic[sizeID] = saneSize
             if dic == {}:
-                raise ValueError('%(dic_name)s dictionary must not be empty!' % locals())
+                raise ValueError(f'{dic_name} dictionary must not be empty!')
             globals()[dic_name] = dic
             print_autoconfig(dic, dic_name, no_quotes=True)
         except Exception as e:
             print('Error while trying to configure scanning options:', file=sys.stderr)
-            print('    %s: %s' % (type(e).__name__, e), file=sys.stderr)
-            print("You should manually configure %s." % (dic_name), file=sys.stderr)
+            print(f'    {type(e).__name__}: {e}', file=sys.stderr)
+            print(f"You should manually configure {dic_name}.", file=sys.stderr)
             sys.exit(1)
 
 
@@ -134,7 +133,7 @@ def scan_and_save(user_selection, imgs=None):
         return imgs, s
 
     if not imgs:
-        imgs, s = init_scan()
+        imgs, _s = init_scan()
 
     # Process images
     output_files = []
@@ -146,7 +145,7 @@ def scan_and_save(user_selection, imgs=None):
                 file_exists = True
                 while file_exists:
                     base_filename = Template(user_selection["output"])\
-                        .safe_substitute(date=date, uid="%02d" % index,  # t-k: index formatted with padding zero
+                        .safe_substitute(date=date, uid=f"{index:02d}",  # t-k: index formatted with padding zero
                                          homedir=config.HOME_DIR)  # t-k: automatically detect home dir ('~')
                     filename = base_filename + '.' + EXTENSIONS[user_selection["format"]]  # t-k: seperate base_filename
                     file_exists = exists_file_with_other_extension(
@@ -177,7 +176,7 @@ def scan_and_save(user_selection, imgs=None):
                     print('SANE ' + e + '. Retrying ...', file=sys.stderr)
                 # s.close() # <- this causes seg fault
                 state.sane_singleton = None
-                imgs, s = init_scan()
+                imgs, _s = init_scan()
             else:
                 print('Whoops! Problem scanning (maybe version Samsung device driver >= 4.1 and multi-scan?):',
                       file=sys.stderr)
@@ -214,9 +213,8 @@ def scan_and_save(user_selection, imgs=None):
             os.remove(aFile)
 
         print("Writing final PDF " + output_files[0] + " ...")
-        output_file = open(output_files[0], "wb")
-        output_file.write(output_stream.getvalue())
-        output_file.close()
+        with open(output_files[0], "wb") as output_file:
+            output_file.write(output_stream.getvalue())
         chown_file(output_files[0])  # t-k: change ownership of scan file
         print("Done.")
 

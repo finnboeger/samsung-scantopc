@@ -63,7 +63,7 @@ def sig_handler(signum, stack=None):
     sig = convSignum2Sig[signum]
     if sig in ['SIGHUP', 'SIGINT', 'SIGQUIT', 'SIGTERM']:
         exit_code = convSig2exitCode.get(sig, 1)
-        print("Caught signal %d '%s', exiting with code %d ..." % (signum, sig, exit_code))
+        print(f"Caught signal {signum} '{sig}', exiting with code {exit_code} ...")
         if sig == 'SIGQUIT':
             state.caught_sigquit = True
         sys.exit(exit_code)
@@ -91,7 +91,7 @@ for i in ['SIGINT', 'SIGQUIT', 'SIGTERM', 'SIGHUP']:
         signum = getattr(signal, i)
         signal.signal(signum, sig_handler)
         convSignum2Sig[signum] = i
-    except RuntimeError as m:
+    except RuntimeError:
         pass  # t-k: do not consider signals like SIGKILL, which cannot be handled (by definition)
 
 # t-k: keep track of a caught SIGQUIT, so temp. files (PID file) will not be removed

@@ -110,8 +110,8 @@ if __name__ == '__main__':
             if pid > 0:
                 # exit from second parent
                 sys.exit(0)
-        except OSError as e:
-            logging.exception("Error forking daemon: %s" % e)
+        except OSError:
+            logging.exception("Error forking daemon")
             sys.exit(1)
 
     # t-k: Logging supporting multiprocessing
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     ]
     for _var in _env_config_vars:
         _val = os.environ.get(_var, '(not set — using default)')
-        print("CONFIG: %s=%s" % (_var, _val))
+        print(f"CONFIG: {_var}={_val}")
 
     # Debug mode
     if config.CLI_OPTIONS.imageFiles:
@@ -170,7 +170,7 @@ if __name__ == '__main__':
         print('At program termination removing PID file (if it still exists and not caught SIGQUIT) with:\n' +
               ' ' * 4 + str(atexit.register(del_pid_file)))
         pid = str(os.getpid())
-        file(config.CLI_OPTIONS.pidfile, 'w+').write("%s\n" % pid)
+        file(config.CLI_OPTIONS.pidfile, 'w+').write(f"{pid}\n")
 
 # ######################### AUTO CONFIGURATION ##########################
 
@@ -194,8 +194,8 @@ if __name__ == '__main__':
     while True:
         try:
             SERVER_INSTANCE_ID = server_register()
-        except Exception as e:
-            logging.exception("Network or scanner not available (%s): waiting 10s and trying again ..." % e)
+        except Exception:
+            logging.exception("Network or scanner not available: waiting 10s and trying again ...")
             time.sleep(10)  # Wait 10 seconds
         else:
             break
@@ -215,10 +215,9 @@ if __name__ == '__main__':
     # angelnu Test the Sane connection (also works as a chache to be ready at scan time)
     # t-k: can only do this after proxies are established if modified sane method is used
     #     + only applicable if one server is used
-    if config.SCANNER_CACHING:
-        if not get_sane_instance():
-            print("Could not connect to Scanner (" + config.SCANNER_SANE_NAME + ") via SANE.", file=sys.stderr)
-            sys.exit(1)
+    if config.SCANNER_CACHING and not get_sane_instance():
+        print("Could not connect to Scanner (" + config.SCANNER_SANE_NAME + ") via SANE.", file=sys.stderr)
+        sys.exit(1)
 
     # Main program: keep scanning
     while True:

@@ -12,7 +12,7 @@ from .state import state
 
 
 # t-k: class that handles hex messages
-class HexMessage(object):
+class HexMessage:
     """
     instances can store, return and prettyprint hex messages
     """
@@ -82,7 +82,6 @@ class ProxyError(Exception):
     """
     exception to raise for handling proxy specific errors
     """
-    pass
 
 
 class ProxyProcess(multiprocessing.Process):
@@ -98,12 +97,12 @@ class ProxyProcess(multiprocessing.Process):
     DEBUGLEVEL = config.PROXY_DEBUGLEVEL  # 0 -> no | 1 -> a bit | 2 -> a bit more | 3 -> lots of printing
 
     def __init__(self):
-        super(ProxyProcess, self).__init__()
+        super().__init__()
         self._stoprequest = multiprocessing.Event()
 
     def join(self, timeout=None):
         self._stoprequest.set()
-        super(ProxyProcess, self).join(timeout)
+        super().join(timeout)
 
     def _printLog(self, debug_level, *content):
         """
@@ -124,28 +123,28 @@ class UDProxy(ProxyProcess):
     PROTOCOL = 'UDP'
 
     def __init__(self):
-        super(UDProxy, self).__init__()
+        super().__init__()
         self.serverConn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.serverConn.bind((self.SERVER_IP, self.PORT))
         self.serverConn.settimeout(1.0)
         self.clientConn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def run(self):
-        self._printLog(1, 'Initated server listening on port %d (%s) ...' % (self.PORT, self.PROTOCOL))
-        self._printLog(1, 'Initiated client connection to scanner port %d (%s) ...' % (self.PORT, self.PROTOCOL))
+        self._printLog(1, f'Initated server listening on port {self.PORT} (self.PROTOCOL) ...')
+        self._printLog(1, f'Initiated client connection to scanner {self.PORT} (self.PROTOCOL) ...')
         while not self._stoprequest.is_set():
             try:
                 from_ws, addr_ws = self.serverConn.recvfrom(self.BUFFERSIZE)
-                self._printLog(3, 'received %4d bytes from %s:%5d' % (len(from_ws), addr_ws[0], addr_ws[1]))
-            except socket.timeout:
+                self._printLog(3, f"received {len(from_ws):4d} bytes from {addr_ws[0]}:{addr_ws[1]:5d}")
+            except TimeoutError:
                 continue
             self.serverConn.settimeout(None)
             sent_size_client = self.clientConn.sendto(from_ws, (self.SCANNER_IP, self.PORT))
-            self._printLog(3, 'sent     %4d bytes to   %s:%5d' % (sent_size_client, self.SCANNER_IP, self.PORT))
+            self._printLog(3, f'sent     {sent_size_client:4d} bytes to   {self.SCANNER_IP}:{self.PORT:5d}')
             from_scanner, addr_sc = self.clientConn.recvfrom(self.BUFFERSIZE)
-            self._printLog(3, 'received %4d bytes from %s:%5d' % (len(from_scanner), addr_sc[0], addr_sc[1]))
+            self._printLog(3, f'received {len(from_scanner):4d} bytes from {addr_sc[0]}:{addr_sc[1]:5d}')
             sent_size_server = self.serverConn.sendto(from_scanner, (addr_ws[0], addr_ws[1]))
-            self._printLog(3, 'sent     %4d bytes to   %s:%5d' % (sent_size_server, addr_ws[0], addr_ws[1]))
+            self._printLog(3, f'sent     {sent_size_server:4d} bytes to   {addr_ws[0]}:{addr_ws[1]:5d}')
             self.serverConn.settimeout(1.0)
         # execute when process is joined (closed)
         self.serverConn.close()
@@ -162,7 +161,7 @@ class TCProxy(ProxyProcess):
     SRCPORT = 0  # 2270 # for client connection with scanner, set to 0 if dynamic source port wanted
 
     def __init__(self):
-        super(TCProxy, self).__init__()
+        super().__init__()
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.bind((self.SERVER_IP, self.PORT))
         self.server.listen(1)
@@ -184,13 +183,13 @@ class TCProxy(ProxyProcess):
             try:
                 sent_size_client = self.clientConn.send(self.npRequest.get_msg())
                 self._printLog(3, 'checking if there are more pages to come ...')
-                self._printLog(3, 'sent     %4d bytes to   scanner' % sent_size_client)
+                self._printLog(3, f'sent     {sent_size_client:4d} bytes to   scanner')
                 self._printLog(3, str(self.npRequest).split('\n')[0])
                 from_scanner = self.clientConn.recv(self.BUFFERSIZE)
                 fr_sc_hx_msg = HexMessage(from_scanner, raw_in=True)
-                self._printLog(3, 'received %4d bytes from scanner' % (len(from_scanner)))
+                self._printLog(3, f'received {len(from_scanner):4d} bytes from scanner')
                 self._printLog(3, str(fr_sc_hx_msg).split('\n')[0])
-            except socket.timeout:
+            except TimeoutError:
                 continue
             if fr_sc_hx_msg == please_wait:
                 self._printLog(3, '"please wait"')
@@ -198,11 +197,11 @@ class TCProxy(ProxyProcess):
                 continue
             elif fr_sc_hx_msg == yes_new_page:
                 result = 'yes new page'
-                self._printLog(1, '"%s"' % result)
+                self._printLog(1, f'"{result}"')
                 break
             elif fr_sc_hx_msg in [no_more_pages, canceling]:
                 result = 'no more pages'
-                self._printLog(1, '"%s"' % result)
+                self._printLog(1, f'"{result}"')
                 break
             else:
                 self._printLog(1, 'could not interpret answer from scanner,\n' + str(fr_sc_hx_msg) + '\nretrying ...')
@@ -218,20 +217,20 @@ class TCProxy(ProxyProcess):
         init_msg2 = HexMessage('1b a8 16 00')  # second sent by sane
         spec_msg = HexMessage('1b a8 13 fb', enlarge_to=255)  # not sent by sane, but needed after init_msg1
         # self.npRequest needed after init_msg2
-        self._printLog(1, 'Initating server listening on port %d (%s) ...' % (self.PORT, self.PROTOCOL))
+        self._printLog(1, f'Initating server listening on port {self.PORT} ({self.PROTOCOL}) ...')
         # main loop starting with connection initiation with workstation (proxy as server)
         while not self._stoprequest.is_set():
             try:
                 self.server_conn, self.server_conn_addr = self.server.accept()
-            except socket.timeout:
+            except TimeoutError:
                 continue
             self.server_conn.settimeout(1.0)
-            self._printLog(2, 'Accepted connection nr. %d from:' % nr_connect, self.server_conn_addr)
+            self._printLog(2, f'Accepted connection nr. {nr_connect} from: {self.server_conn_addr}')
             # (re)connect with scanner (proxy as client) if necessary
             while not self._stoprequest.is_set():
                 try:
                     self.clientConn.connect((self.SCANNER_IP, self.PORT))
-                except socket.error as e:
+                except OSError as e:
                     # already connected, no need to reconnect
                     if e.errno == errno.EISCONN:
                         pass
@@ -239,11 +238,10 @@ class TCProxy(ProxyProcess):
                         raise
                 else:
                     self.clientConn.settimeout(None)
-                    self._printLog(1, 'Initiated client connection to scanner port %d (%s) ...' %
-                                   (self.PORT, self.PROTOCOL))
+                    self._printLog(1, f'Initiated client connection to scanner port {self.PORT} ({self.PROTOCOL}) ...')
                 try:
-                    self.clientConn.send('')
-                except socket.error as e:
+                    self.clientConn.send(b'')
+                except OSError as e:
                     # broken pipe error (remote disconnect (or not yet connected)) or
                     #     bad file descriptor (socket already closed by self)
                     if e.errno in [errno.EPIPE, errno.EBADF]:
@@ -259,7 +257,7 @@ class TCProxy(ProxyProcess):
                 try:
                     try:
                         from_ws = self.server_conn.recv(self.BUFFERSIZE)
-                    except socket.timeout:
+                    except TimeoutError:
                         try:
                             # blocking Queue.get call that times out after 50 ms
                             query = state.query_q.get(True, 0.05)
@@ -270,7 +268,7 @@ class TCProxy(ProxyProcess):
                             if result:
                                 state.result_q.put(result)
                         continue
-                    except socket.error as e:
+                    except OSError as e:
                         # connection reset by peer
                         if e.errno == errno.ECONNRESET:
                             self.server_conn.close()
@@ -278,17 +276,17 @@ class TCProxy(ProxyProcess):
                         else:
                             raise
                     self.server_conn.settimeout(None)
-                    self._printLog(3, 'received %4d bytes from workstation' % (len(from_ws)))
+                    self._printLog(3, f'received {len(from_ws):4d} bytes from workstation')
                     if HexMessage(from_ws, raw_in=True) == error3byte_msg:
                         self._printLog(3, error3byte_msg)
                         # connected workstation too early before file chunk was complete
                         raise ProxyError('connected workstation too early, returning to communication with scanner')
                 except ProxyError as e:
                     self._printLog(3, 'ProxyError:', e)
-                    pass  # did't send these 3 bytes to scanner, continue with scanner as if nothing happened
+                    # did't send these 3 bytes to scanner, continue with scanner as if nothing happened
                 else:
                     sent_size_client = self.clientConn.send(from_ws)
-                    self._printLog(3, 'sent     %4d bytes to   scanner' % sent_size_client)
+                    self._printLog(3, f'sent     {sent_size_client:4d} bytes to   scanner')
                     self._printLog(3, str(HexMessage(from_ws, raw_in=True)).split('\n')[0])
                     if sent_size_client == 0:
                         nr_connect += 1
@@ -304,8 +302,8 @@ class TCProxy(ProxyProcess):
                 while not self._stoprequest.is_set():
                     try:
                         from_scanner = self.clientConn.recv(self.BUFFERSIZE)
-                        self._printLog(3, 'received %4d bytes from scanner' % (len(from_scanner)))
-                    except socket.timeout:
+                        self._printLog(3, f'received {len(from_scanner):4d} bytes from scanner')
+                    except TimeoutError:
                         # endless retry if the 1st package was timed out (effectively no timeout at all for 1st package)
                         if not sending_file:
                             continue
@@ -319,7 +317,7 @@ class TCProxy(ProxyProcess):
                         break
                     retry_after1240 = 0
                     sent_sizeserver = self.server_conn.send(from_scanner)
-                    self._printLog(3, 'sent     %4d bytes to   workstation' % sent_sizeserver)
+                    self._printLog(3, f'sent     {sent_sizeserver:4d} bytes to   workstation')
                     self._printLog(3, str(HexMessage(from_scanner, raw_in=True)).split('\n')[0])
                     sending_file = True  # after 1st data package
                 # special intermediate packages needed to be sent during the beginning after init_msg1/2
@@ -330,10 +328,10 @@ class TCProxy(ProxyProcess):
                     elif from_ws_hx_msg == init_msg2:
                         to_send = self.npRequest
                     sent_size_client = self.clientConn.send(to_send.get_msg())
-                    self._printLog(3, 'sent     %4d bytes to   scanner' % sent_size_client)
+                    self._printLog(3, f'sent     {sent_size_client:4d} bytes to   scanner')
                     self._printLog(3, str(to_send).split('\n')[0])
                     from_scanner = self.clientConn.recv(self.BUFFERSIZE)
-                    self._printLog(3, 'received %4d bytes from scanner' % (len(from_scanner)))
+                    self._printLog(3, f'received {len(from_scanner):4d} bytes from scanner')
                     self._printLog(3, str(HexMessage(from_scanner, raw_in=True)).split('\n')[0])
                 self.server_conn.settimeout(1.0)
         # execute when process is joined (closed)
@@ -411,7 +409,7 @@ def start_proxies():
     while True:
         try:
             state.proxies = [UDProxy(), TCProxy()]
-        except socket.error as e:
+        except OSError as e:
             if e.errno == errno.EADDRINUSE:  # address already in use
                 print('TCP proxy was restarted too soon, waiting 10s ...')
                 time.sleep(10)
