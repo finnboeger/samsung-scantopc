@@ -143,11 +143,12 @@ def scan_and_save(user_selection, imgs=None):
             for im in imgs:
                 file_exists = True
                 while file_exists:
-                    base_filename = Template(user_selection["output"])\
-                        .safe_substitute(date=now.strftime("%Y-%m-%d"), 
-                                         datetime=now.strftime("%Y-%m-%d %H-%M-%S"),
-                                         uid=f"{index:02d}",  # t-k: index formatted with padding zero
-                                         homedir=config.HOME_DIR)  # t-k: automatically detect home dir ('~')
+                    base_filename = Template(user_selection["output"]).safe_substitute(
+                        date=now.strftime("%Y-%m-%d"),
+                        datetime=now.strftime("%Y-%m-%d_%H-%M-%S"),
+                        uid=f"{index:02d}",  # t-k: index formatted with padding zero
+                        homedir=config.HOME_DIR,  # t-k: automatically detect home dir ('~')
+                    )  
                     filename = base_filename + '.' + EXTENSIONS[user_selection["format"]]  # t-k: seperate base_filename
                     file_exists = exists_file_with_other_extension(
                         base_filename)  # t-k: raise index independent of file extension
