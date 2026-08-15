@@ -97,9 +97,17 @@ class Config:
     OWNER: str
 
     MODES2SANE: dict[str, str]
-    SIZE2SANE: dict[str, str]
     OPTIONS: list[ScanOption]
     CLI_OPTIONS: Values
+    _SIZE2SANE: dict[str, str] | None = None
+
+    @property
+    def SIZE2SANE(self) -> dict[str, str]:
+        if self._SIZE2SANE is not None:
+            return self._SIZE2SANE
+        from .scanning import autoconfig_dic
+        self._SIZE2SANE = autoconfig_dic('SIZE2SANE', 'Size', 'rotated')
+        return self._SIZE2SANE
     
 
     def __new__(cls) -> "Config":
@@ -179,14 +187,18 @@ class Config:
                 print(f"Warning: could not parse MODES2SANE JSON: {e}", file=sys.stderr)
 
 
-    def update_size2sane(self) -> None:
+    def update_size2sane(self, size = None) -> None:
+        if size is not None:
+            self._SIZE2SANE = size
+            return
+        
         # SIZE2SANE: auto-configured from the device later when not provided here
         _size2sane_env = os.environ.get('SIZE2SANE')
         if _size2sane_env:
             try:
-                self.SIZE2SANE = json.loads(_size2sane_env)
+                self._SIZE2SANE = json.loads(_size2sane_env)
             except json.JSONDecodeError as e:
-                print("Warning: could not parse SIZE2SANE JSON: %s" % e, file=sys.stderr)
+                print(f"Warning: could not parse SIZE2SANE JSON: {e}", file=sys.stderr)
 
 
     def update_options(self) -> None:

@@ -24,40 +24,39 @@ config = Config()
 
 # t-k: method to automatically determine translation from scanner command (received by server) to sane command
 #     was written for sizes but may be adapted to other translations
-def autoconfig_dic(dic_name, xml_key, preferred):
-    if dic_name not in globals():
-        try:
-            # t-k: get available options from XML file that may be received by server
-            capxmlfile = request.urlopen(f'http://{config.REAL_SCANNER_IP}/IDS/CAP.XML')
-            capxmldata = capxmlfile.read()
-            capxmlfile.close()
-            xmlroot = ET.fromstring(capxmldata)
-            sizes = []
-            for size in xmlroot.iter(xml_key):
-                sizes.append(size.attrib['ID'])
-            # t-k: get available size options for SANE device
-            sane_sizes = get_sane_instance()["page_format"].constraint
-            # t-k: match these two sets together and save as dic_name (e.g. SIZE2SANE)
-            dic = {}
-            for sizeID in sizes:
-                size_lst = sizeID.split('_')[1:]  # t-k: may be > 1 part, e.g. ['B5', 'JIS']
-                for saneSize in sane_sizes:
-                    flag = True
-                    for sizeElm in size_lst:
-                        flag = flag and sizeElm.lower() in saneSize.lower()
-                    # t-k: save combination if all parts match sane size and
-                    #     rotated takes precedence over non-rotated
-                    if flag and (sizeID not in dic or preferred in saneSize.lower()):
-                        dic[sizeID] = saneSize
-            if dic == {}:
-                raise ValueError(f'{dic_name} dictionary must not be empty!')
-            globals()[dic_name] = dic
-            print_autoconfig(dic, dic_name, no_quotes=True)
-        except Exception as e:
-            print('Error while trying to configure scanning options:', file=sys.stderr)
-            print(f'    {type(e).__name__}: {e}', file=sys.stderr)
-            print(f"You should manually configure {dic_name}.", file=sys.stderr)
-            sys.exit(1)
+def autoconfig_dic(config_name: str, xml_key: str, preferred: str) -> dict:
+    try:
+        # t-k: get available options from XML file that may be received by server
+        capxmlfile = request.urlopen(f'http://{config.REAL_SCANNER_IP}/IDS/CAP.XML')
+        capxmldata = capxmlfile.read()
+        capxmlfile.close()
+        xmlroot = ET.fromstring(capxmldata)
+        sizes = []
+        for size in xmlroot.iter(xml_key):
+            sizes.append(size.attrib['ID'])
+        # t-k: get available size options for SANE device
+        sane_sizes = get_sane_instance()["page_format"].constraint
+        # t-k: match these two sets together and save as dic_name (e.g. SIZE2SANE)
+        dic = {}
+        for sizeID in sizes:
+            size_lst = sizeID.split('_')[1:]  # t-k: may be > 1 part, e.g. ['B5', 'JIS']
+            for saneSize in sane_sizes:
+                flag = True
+                for sizeElm in size_lst:
+                    flag = flag and sizeElm.lower() in saneSize.lower()
+                # t-k: save combination if all parts match sane size and
+                #     rotated takes precedence over non-rotated
+                if flag and (sizeID not in dic or preferred in saneSize.lower()):
+                    dic[sizeID] = saneSize
+        if dic == {}:
+            raise ValueError(f'{config_name} dictionary must not be empty!')
+        print_autoconfig(dic, config_name, no_quotes=True)
+        return dic
+    except Exception as e:
+        print('Error while trying to configure scanning options:', file=sys.stderr)
+        print(f'    {type(e).__name__}: {e}', file=sys.stderr)
+        print(f"You should manually configure {config_name}.", file=sys.stderr)
+        sys.exit(1)
 
 
 def get_sane_instance() -> sane.SaneDev:
