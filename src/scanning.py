@@ -138,14 +138,16 @@ def scan_and_save(user_selection, imgs=None):
     # Process images
     output_files = []
     index = 1
-    date = datetime.datetime.now().strftime("%Y-%m-%d")
+    now = datetime.datetime.now()
     while True:
         try:
             for im in imgs:
                 file_exists = True
                 while file_exists:
                     base_filename = Template(user_selection["output"])\
-                        .safe_substitute(date=date, uid=f"{index:02d}",  # t-k: index formatted with padding zero
+                        .safe_substitute(date=now.strftime("%Y-%m-%d"), 
+                                         datetime=now.strftime("%Y-%m-%d %H-%M-%S"),
+                                         uid=f"{index:02d}",  # t-k: index formatted with padding zero
                                          homedir=config.HOME_DIR)  # t-k: automatically detect home dir ('~')
                     filename = base_filename + '.' + EXTENSIONS[user_selection["format"]]  # t-k: seperate base_filename
                     file_exists = exists_file_with_other_extension(

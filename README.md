@@ -50,7 +50,7 @@ The final output path is `SCAN_OUTPUT_DIR/SCAN_FILENAME_TEMPLATE.<ext>`.
 | Variable | Default | Description |
 |---|---|---|
 | `SCAN_OUTPUT_DIR` | `/scans` | Directory inside the container where scans are written. This should match the left-hand side of your volume mount. |
-| `SCAN_FILENAME_TEMPLATE` | `SCAN_${date}__${uid}` | Filename template (without extension). Supported substitutions: `${date}` → `YYYY-MM-DD`, `${uid}` → zero-padded sequence number, `${homedir}` → home directory of `OWNER`. |
+| `SCAN_FILENAME_TEMPLATE` | `SCAN_${date}__${uid}` | Filename template (without extension). Supported substitutions: `${date}` → `YYYY-mm-dd`, `${datetime}` -> `YYYY-mm-dd HH:MM:SS`${uid}` → zero-padded sequence number, `${homedir}` → home directory of `OWNER`. |
 
 ### Logging
 
