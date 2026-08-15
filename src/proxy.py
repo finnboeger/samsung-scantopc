@@ -336,7 +336,8 @@ class TCProxy(ProxyProcess):
                 self.server_conn.settimeout(1.0)
         # execute when process is joined (closed)
         try:
-            self.server_conn.close()
+            if self.server_conn is not None:
+                self.server_conn.close()
         except AttributeError:
             pass
         self.server.close()

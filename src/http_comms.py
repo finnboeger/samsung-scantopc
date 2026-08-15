@@ -111,9 +111,13 @@ def server_unregister():
     # <?xml version="1.0" encoding="UTF-8"?>
     #   <root><S2PC_Regi UserID ="server" Result="DELETE_OK" InstanceID="140" /></root>
 
+    if result is None:
+        # scanner is unreachable, can't unregister
+        return
+
     m = re.match(b'.*Result="DELETE_OK"', result)
     if not m:
-        raise NameError("Error unregistering server: " + result)
+        raise NameError("Error unregistering server: " + result.decode("utf-8"))
     else:
         print(f"Unregistered server '{config.SERVER_NAME}' with UniqueID '{state.server_uid}'.")
 

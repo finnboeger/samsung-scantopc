@@ -169,11 +169,11 @@ def scan_and_save(user_selection, imgs=None):
         except Exception as e:
             if e == 'Error during device I/O':
                 if config.MODIFIED_SANE:
-                    print('SANE ' + e + '. Restarting proxies and retrying ...', file=sys.stderr)
+                    print('SANE ' + str(e) + '. Restarting proxies and retrying ...', file=sys.stderr)
                     exit_proxies()
                     start_proxies()
                 else:
-                    print('SANE ' + e + '. Retrying ...', file=sys.stderr)
+                    print('SANE ' + str(e) + '. Retrying ...', file=sys.stderr)
                 # s.close() # <- this causes seg fault
                 state.sane_singleton = None
                 imgs, _s = init_scan()
