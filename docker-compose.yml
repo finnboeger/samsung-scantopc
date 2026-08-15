@@ -1,4 +1,3 @@
-# base, used for production Linux
 services:
   samsung-scantopc:
     build: .
@@ -10,4 +9,11 @@ services:
       - NET_RAW
     volumes:
       - ./scans:/scans
+    environment:
+      SCAN_OPTIONS: >-
+        [
+          {"name": "Color PDF",  "color": "COLOR_TRUE", "resolution": "DPI_300", "format": "FORMAT_M_PDF", "size": "SIZE_A4"}
+        ]
+      SCAN_OUTPUT_DIR: "/scans"
+      SCAN_FILENAME_TEMPLATE: "SCAN_$${datetime}__$${uid}"
     restart: unless-stopped
