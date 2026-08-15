@@ -3,6 +3,7 @@ import os
 import platform
 import sys
 from signal import signal
+from typing import NoReturn
 
 from .config import Config
 from .state import state
@@ -96,3 +97,7 @@ for i in ['SIGINT', 'SIGQUIT', 'SIGTERM', 'SIGHUP']:
 
 # t-k: keep track of a caught SIGQUIT, so temp. files (PID file) will not be removed
 state.caught_sigquit = False
+
+
+def fail(reason: str, error_constructor: type[Exception] = Exception) -> NoReturn:
+    raise error_constructor(reason)

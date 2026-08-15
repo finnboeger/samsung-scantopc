@@ -2,8 +2,9 @@ import http.client as http_client
 import re
 import xml.etree.ElementTree as ET
 
-from .config import Config
+from .config import Config, ScanOption
 from .state import state
+from .utils import fail
 
 # HTTP Post functions
 
@@ -138,9 +139,7 @@ def push_server_options():
     root = ET.Element('root')
     app_list = ET.SubElement(root, 'S2PC_AppList')
 
-    index = 0
-    for option in config.OPTIONS:
-        index += 1
+    for index, option in enumerate(config.OPTIONS, start=1):
         list_element = ET.SubElement(app_list, 'List')
         ET.SubElement(list_element, 'AppIndex').attrib['Value'] = str(index)
         ET.SubElement(list_element, 'AppName').attrib['Value'] = option["name"]
@@ -157,22 +156,23 @@ def push_server_options():
     post_multipart(config.SCANNER_IP, '/IDS/ScanFaxToPC.cgi', [], [(1, "scantopc", msg)], False)
 
 
-def query_user_options():
+def query_user_options() -> ScanOption:
     config = Config()
-    result = post_multipart(config.SCANNER_IP, '/IDS/UserSelect.xml', [], [(1, "scantopc", "")])
+    result = post_multipart(config.SCANNER_IP, '/IDS/UserSelect.xml', [], [(1, "scantopc", "")]) or \
+        fail("No options selected by user", RuntimeError)
     # {'name':'Gray-S_PDF-75','color':'GRAY','resolution':'75','format':'S_PDF','size','a4'}
     # result='<?xml version="1.0" encoding="UTF-8"?><root><S2PC_Select><AppIndex Value="1"/>
     #   <Resolution Value="DPI_300"/><Color Value="COLOR_GRAY"/><FileFormat Value="FORMAT_M_PDF"/>
     #   <ScanSize Value="SIZE_A4"/></S2PC_Select></root>'
     # print result
-    root = ET.fromstring(result).find('S2PC_Select')
-    index = root.find('AppIndex').attrib["Value"]
+    root = ET.fromstring(result).find('S2PC_Select') or fail("S2PC_Select does not exist", RuntimeError)
+    index = (root.find('AppIndex') or fail("AppIndex does not exist", RuntimeError)).attrib["Value"]
 
-    user_options = OPTIONS[int(index) - 1]  # t-k: added '-1'
-    user_options['color'] = root.find('Color').attrib["Value"]
-    user_options['resolution'] = root.find('Resolution').attrib["Value"]
-    user_options['format'] = root.find('FileFormat').attrib["Value"]
-    user_options['size'] = root.find('ScanSize').attrib["Value"]
+    user_options = config.OPTIONS[int(index) - 1]  # t-k: added '-1'
+    user_options['color'] = (root.find('Color')  or fail("Color does not exist", RuntimeError)).attrib["Value"]
+    user_options['resolution'] = (root.find('Resolution')  or fail("Resolution does not exist", RuntimeError)).attrib["Value"]
+    user_options['format'] = (root.find('FileFormat') or fail("FileFormat does not exist", RuntimeError)).attrib["Value"]
+    user_options['size'] = (root.find('ScanSize') or fail("ScanSize does not exist", RuntimeError)).attrib["Value"]
 
     return user_options
 
