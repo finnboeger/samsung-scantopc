@@ -202,8 +202,9 @@ def scan_and_save(user_selection, imgs=None):
         print("Concatenating PDF files ...")
         output = PdfWriter()
         for aFile in output_files:
-            input_pdf = PdfReader(file(aFile, "rb"))
-            output.addPage(input_pdf.getPage(0))
+            with open(aFile, "rb") as f:
+                input_pdf = PdfReader(f)
+                output.add_page(input_pdf.pages[0])
         output_stream = io.BytesIO()  # file(output_files[0], "wb")
         output.write(output_stream)
         # output_stream.close()

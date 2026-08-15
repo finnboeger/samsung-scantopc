@@ -170,7 +170,8 @@ if __name__ == '__main__':
         print('At program termination removing PID file (if it still exists and not caught SIGQUIT) with:\n' +
               ' ' * 4 + str(atexit.register(del_pid_file)))
         pid = str(os.getpid())
-        file(config.CLI_OPTIONS.pidfile, 'w+').write(f"{pid}\n")
+        with open(config.CLI_OPTIONS.pidfile, 'w+') as f:
+            f.write(f"{pid}\n")
 
 # ######################### AUTO CONFIGURATION ##########################
 
