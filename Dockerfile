@@ -38,11 +38,15 @@ RUN echo "deb https://www.bchemnet.com/suldr/ debian extra" \
 # Re-enable service startup (no longer needed during build, clean up)
 RUN rm -f /usr/sbin/policy-rc.d
 
-# Download the scanner server script from GitHub
-RUN curl -fsSL \
-    https://raw.githubusercontent.com/kleest/samsung-scantopc/main/samsungScannerServer.py \
-    -o /usr/local/bin/samsungScannerServer.py \
-    && chmod +x /usr/local/bin/samsungScannerServer.py
+# Copy project source files
+COPY src/ /usr/local/bin/src/
+COPY samsungScannerServer.py /usr/local/bin/samsungScannerServer.py
+
+# Ensure the entry script is executable
+RUN chmod +x /usr/local/bin/samsungScannerServer.py
+
+# Ensure Python can import modules from /usr/local/bin (where src/ lives)
+ENV PYTHONPATH="/usr/local/bin:${PYTHONPATH}"
 
 # Output directory for scanned files
 RUN mkdir -p /scans
