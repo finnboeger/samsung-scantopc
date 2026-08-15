@@ -15,7 +15,6 @@ RUN echo "deb http://deb.debian.org/debian trixie-backports main" > /etc/apt/sou
     python3-pil \
     python3-sane \
     python3-pypdf \
-    python3-six \
     python3-zeroconf \
     sane-utils \
     avahi-daemon \

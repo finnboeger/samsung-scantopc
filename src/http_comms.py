@@ -1,7 +1,6 @@
+import http.client as http_client
 import re
 import xml.etree.ElementTree as ET
-
-from six.moves import http_client
 
 from .config import Config
 from .state import state
