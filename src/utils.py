@@ -1,37 +1,31 @@
 
 import os
 import platform
+import signal
 import sys
-from signal import signal
 from typing import NoReturn
 
-from .config import Config
-from .state import state
 
-
-def del_pid_file():
-    config = Config()
+def del_pid_file(pidfile: str):
+    from .state import state
     # t-k: delete PID only if it exists and if not caught signal SIGQUIT (3, with Strg+\)
     if state.caught_sigquit:
-        print('Did not remove PID file: ' + config.CLI_OPTIONS.pidfile + '\n' + ' ' * 4 +
+        print('Did not remove PID file: ' + pidfile + '\n' + ' ' * 4 +
               'because of the SIGQUIT signal caught.')
     else:
-        if os.path.exists(config.CLI_OPTIONS.pidfile):
-            os.remove(config.CLI_OPTIONS.pidfile)
-            print('Removed PID file: ' + config.CLI_OPTIONS.pidfile)
+        if os.path.exists(pidfile):
+            os.remove(pidfile)
+            print('Removed PID file: ' + pidfile)
         else:
-            print('Could not remove PID file: ' + config.CLI_OPTIONS.pidfile + '\n' + ' ' * 4 +
+            print('Could not remove PID file: ' + pidfile + '\n' + ' ' * 4 +
                   "because it was already deleted (probably by 'sudo service samsungScannerServer stop').")
 
 
-def server_uid_gen():
+def server_uid_gen(servername: str):
     """
     generate a UniqueID for this server based on SERVER_NAME and hostname using md5 as hash method
     """
     from hashlib import md5
-    config = Config()
-
-    servername = config.SERVER_NAME
     hostname = platform.node()
 
     def hash2half_length2int(hash_string):
@@ -61,6 +55,7 @@ def server_uid_gen():
 
 # t-k: handle some signals to trigger normal exit (and atexit then triggers its own stuff (delPID, server_unregister))
 def sig_handler(signum, stack=None):
+    from .state import state
     sig = convSignum2Sig[signum]
     if sig in ['SIGHUP', 'SIGINT', 'SIGQUIT', 'SIGTERM']:
         exit_code = convSig2exitCode.get(sig, 1)
@@ -94,9 +89,6 @@ for i in ['SIGINT', 'SIGQUIT', 'SIGTERM', 'SIGHUP']:
         convSignum2Sig[signum] = i
     except RuntimeError:
         pass  # t-k: do not consider signals like SIGKILL, which cannot be handled (by definition)
-
-# t-k: keep track of a caught SIGQUIT, so temp. files (PID file) will not be removed
-state.caught_sigquit = False
 
 
 def fail(reason: str, error_constructor: type[Exception] = Exception) -> NoReturn:

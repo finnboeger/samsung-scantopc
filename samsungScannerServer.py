@@ -27,14 +27,13 @@ import sys
 import time
 
 from PIL import Image
-
-from .src import __version__
-from .src.config import Config
-from .src.http_comms import server_register, server_unregister
-from .src.log import LogFile, listener_configurer, listener_process, worker_configurer
-from .src.proxy import exit_proxies, start_proxies
-from .src.scanning import get_sane_instance, scan_and_save, scann_worker
-from .src.utils import del_pid_file, server_uid_gen
+from src import __version__
+from src.config import Config
+from src.http_comms import server_register, server_unregister
+from src.log import LogFile, listener_configurer, listener_process, worker_configurer
+from src.proxy import exit_proxies, start_proxies
+from src.scanning import get_sane_instance, scan_and_save, scann_worker
+from src.utils import del_pid_file, server_uid_gen
 
 """
 Summary of messages exchanged in order to scan
@@ -168,7 +167,7 @@ if __name__ == '__main__':
     if config.CLI_OPTIONS.daemon and config.CLI_OPTIONS.pidfile:
         print("Write PID to file: " + config.CLI_OPTIONS.pidfile)
         print('At program termination removing PID file (if it still exists and not caught SIGQUIT) with:\n' +
-              ' ' * 4 + str(atexit.register(del_pid_file)))
+              ' ' * 4 + str(atexit.register(lambda: del_pid_file(config.CLI_OPTIONS.pidfile))))
         pid = str(os.getpid())
         with open(config.CLI_OPTIONS.pidfile, 'w+') as f:
             f.write(f"{pid}\n")
@@ -190,7 +189,7 @@ if __name__ == '__main__':
     # Calculate "ID" based on SERVER_NAME and hostname
     # t-k: use md5 hashing to get real unique IDs that take into account
     #     the whole strings rather than just the last 8 letters
-    SERVER_UID = server_uid_gen()
+    SERVER_UID = server_uid_gen(config.SERVER_NAME)
 
     while True:
         try:
