@@ -36,7 +36,7 @@ def autoconfig_dic(dic_name, xml_key, preferred):
             for size in xmlroot.iter(xml_key):
                 sizes.append(size.attrib['ID'])
             # t-k: get available size options for SANE device
-            sane_sizes = state.sane_singleton["page_format"].constraint
+            sane_sizes = get_sane_instance()["page_format"].constraint
             # t-k: match these two sets together and save as dic_name (e.g. SIZE2SANE)
             dic = {}
             for sizeID in sizes:
@@ -61,7 +61,7 @@ def autoconfig_dic(dic_name, xml_key, preferred):
             sys.exit(1)
 
 
-def get_sane_instance():
+def get_sane_instance() -> sane.SaneDev:
     if state.sane_singleton:
         return state.sane_singleton
     else:
@@ -72,16 +72,16 @@ def get_sane_instance():
         while True:
             try:
                 # t-k: use modified open method to use modified sane classes
-                if config.MODIFIED_SANE:
-                    state.sane_singleton = modsaneopen(config.SCANNER_SANE_NAME, query_q, result_q)
-                else:
-                    state.sane_singleton = sane.open(config.SCANNER_SANE_NAME)
+                sane_instance = modsaneopen(config.SCANNER_SANE_NAME) \
+                    if config.MODIFIED_SANE \
+                    else sane.open(config.SCANNER_SANE_NAME)
+                state.sane_singleton = sane_instance
 
                 # t-k: if SIZE2SANE / ... haven't been given in config file, try to automatically configure them
                 # t-k: f.l.t.r. -> name of dict, xml key, preferred sane option
                 autoconfig_dic('SIZE2SANE', 'Size', 'rotated')
                 print("Connected to scanner.")
-                return state.sane_singleton
+                return sane_instance
             except Exception as e:
                 if config.MODIFIED_SANE and e.message.startswith('no such scan device'):
                     print("Proxy scan 'device' not found, restarting proxies and trying again ...", file=sys.stderr)
