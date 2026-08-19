@@ -1,5 +1,7 @@
+.git
 .venv
 .DS_Store
 .gitignore
 LICENSE
 README.md
+tools

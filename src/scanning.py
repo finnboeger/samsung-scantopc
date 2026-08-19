@@ -13,7 +13,7 @@ from urllib import request
 import sane
 from pypdf import PdfReader, PdfWriter
 
-from .config import EXTENSIONS, Config, print_autoconfig
+from .config import EXTENSIONS, Config, ScanOption, print_autoconfig
 from .http_comms import push_server_options, query_user_options, server_refresh
 from .proxy import exit_proxies, modsaneopen, start_proxies
 from .snmp import query_printer_scan_status
@@ -94,7 +94,7 @@ def get_sane_instance() -> sane.SaneDev:
         
 
 
-def scan_and_save(user_selection, imgs=None):
+def scan_and_save(user_selection: ScanOption, imgs=None):
     config = Config()
 
     # t-k: to raise file index independent of file extension
@@ -119,6 +119,8 @@ def scan_and_save(user_selection, imgs=None):
     print("DPI: " + str(dpi))
     size = config.SIZE2SANE[user_selection["size"]]
     print("SIZE: " + size)
+    doc_source = user_selection["doc_source"]
+    print("DOC_SOURCE: " + (doc_source or "AUTO"))
 
     # Initialize scan
 
@@ -128,6 +130,7 @@ def scan_and_save(user_selection, imgs=None):
         s.mode = mode
         s.resolution = dpi
         s.page_format = size  # t-k: bugfix page_format is correct (not page-format)
+        s.doc_source = doc_source
         imgs = s.multi_scan()
         return imgs, s
 

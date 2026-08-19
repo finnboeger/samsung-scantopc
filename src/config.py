@@ -10,7 +10,7 @@ import time
 from collections.abc import Callable
 from optparse import OptionGroup, OptionParser, Values
 from string import Template
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 import sane
 
@@ -78,6 +78,7 @@ class ScanOption(TypedDict):
     resolution: str
     format: str
     size: str
+    doc_source: Literal["ADF Simplex", "Flatbed"] | None
     output: str
     filters: list[ScanFilter]
 
@@ -242,6 +243,7 @@ class Config:
                             'resolution': _opt.get('resolution', 'DPI_300'),
                             'format': _opt.get('format', 'FORMAT_M_PDF'),
                             'size': _opt.get('size', 'SIZE_A4'),
+                            'doc_source': _opt.get('doc_source', None),
                             'output': _opt.get('output', self.OUTPUT_PREFIX),
                             'filters': [],
                         })
@@ -251,12 +253,12 @@ class Config:
             else:
                 # Built-in defaults — covers the most common use-cases out of the box
                 self.OPTIONS = [
-                    {'name': 'Gray-M_PDF-300',  'color': 'COLOR_GRAY', 'resolution': 'DPI_300', 'format': 'FORMAT_M_PDF', 'size': 'SIZE_A4', 'output': self.OUTPUT_PREFIX, 'filters': []},
-                    {'name': 'Color-M_PDF-300', 'color': 'COLOR_TRUE', 'resolution': 'DPI_300', 'format': 'FORMAT_M_PDF', 'size': 'SIZE_A4', 'output': self.OUTPUT_PREFIX, 'filters': []},
-                    {'name': 'Gray-JPEG-300',   'color': 'COLOR_GRAY', 'resolution': 'DPI_300', 'format': 'FORMAT_JPEG',  'size': 'SIZE_A4', 'output': self.OUTPUT_PREFIX, 'filters': []},
-                    {'name': 'Color-JPEG-300',  'color': 'COLOR_TRUE', 'resolution': 'DPI_300', 'format': 'FORMAT_JPEG',  'size': 'SIZE_A4', 'output': self.OUTPUT_PREFIX, 'filters': []},
-                    {'name': 'Gray-M_PDF-75',   'color': 'COLOR_GRAY', 'resolution': 'DPI_75',  'format': 'FORMAT_M_PDF', 'size': 'SIZE_A4', 'output': self.OUTPUT_PREFIX, 'filters': []},
-                    {'name': 'Gray-S_PDF-75',   'color': 'COLOR_GRAY', 'resolution': 'DPI_75',  'format': 'FORMAT_S_PDF', 'size': 'SIZE_A4', 'output': self.OUTPUT_PREFIX, 'filters': []},
+                    {'name': 'Gray-M_PDF-300',  'color': 'COLOR_GRAY', 'resolution': 'DPI_300', 'format': 'FORMAT_M_PDF', 'size': 'SIZE_A4', 'doc_source': None, 'output': self.OUTPUT_PREFIX, 'filters': []},
+                    {'name': 'Color-M_PDF-300', 'color': 'COLOR_TRUE', 'resolution': 'DPI_300', 'format': 'FORMAT_M_PDF', 'size': 'SIZE_A4', 'doc_source': None, 'output': self.OUTPUT_PREFIX, 'filters': []},
+                    {'name': 'Gray-JPEG-300',   'color': 'COLOR_GRAY', 'resolution': 'DPI_300', 'format': 'FORMAT_JPEG',  'size': 'SIZE_A4', 'doc_source': None, 'output': self.OUTPUT_PREFIX, 'filters': []},
+                    {'name': 'Color-JPEG-300',  'color': 'COLOR_TRUE', 'resolution': 'DPI_300', 'format': 'FORMAT_JPEG',  'size': 'SIZE_A4', 'doc_source': None, 'output': self.OUTPUT_PREFIX, 'filters': []},
+                    {'name': 'Gray-M_PDF-75',   'color': 'COLOR_GRAY', 'resolution': 'DPI_75',  'format': 'FORMAT_M_PDF', 'size': 'SIZE_A4', 'doc_source': None, 'output': self.OUTPUT_PREFIX, 'filters': []},
+                    {'name': 'Gray-S_PDF-75',   'color': 'COLOR_GRAY', 'resolution': 'DPI_75',  'format': 'FORMAT_S_PDF', 'size': 'SIZE_A4', 'doc_source': None, 'output': self.OUTPUT_PREFIX, 'filters': []},
                 ]
 
 
